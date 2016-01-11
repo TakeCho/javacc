@@ -1,0 +1,453 @@
+/**
+ **     Mini-Compiler Parser
+ **/
+
+options {
+    STATIC=false;
+    UNICODE_INPUT=true;
+    DEBUG_PARSER=true;
+}
+
+PARSER_BEGIN(ComplParser)
+
+import java.io.*;
+
+public class ComplParser implements VMcodeConst {
+
+    CodeGenerater codeGen = null;               // --> <4>
+    public int nParseErrors = 0;                // --> <13>
+
+    public ComplParser(FileReader fr, CodeGenerater cg) {
+        this(fr);
+        codeGen = cg;
+    }
+
+}
+
+PARSER_END(ComplParser)
+
+TOKEN_MGR_DECLS :
+{
+    public int nLexicalErrors = 0;              // --> <22>
+}
+
+SKIP :
+{
+        " "
+    |   "\t"
+    |   "\n"
+    |   "\r"
+    |   "\f"
+}
+
+TOKEN :
+{
+        < ADDOP: "+" >
+    |   < SUBOP: "-" >
+    |   < MULOP: "*" >
+    |   < DIVOP: "/" >
+    |   < ASGNOP: "=" >
+    |   < EQOP: "==" >
+    |   < GTOP: ">" >
+    |   < GEOP: ">=" >
+    |   < LSOP: "<" >
+    |   < LEOP: "<=" >
+    |   < NTOP: "!=" >
+    |   < LC: "{" >
+    |   < RC: "}" >
+    |   < LP: "(" >
+    |   < RP: ")" >
+    |   < SM: ";" >
+    |   < CM: "," >
+}
+
+TOKEN [IGNORE_CASE] :
+{
+        < VAR: "var" >
+    |   < IF: "if" >
+    |   < ELSE: "else" >
+    |   < WHILE: "while" >
+    |   < PUT: "put" >
+    |   < GET: "get" >
+}
+
+TOKEN :
+{
+        < #DIGIT: [ "0"-"9" ] >
+    |   < #LETTER: [ "\u0100"-"\u9fff", "\ue000"-"\uffff",
+                        "a"-"z", "A"-"Z", "_" ] >
+                                                // --> <18>
+}
+
+TOKEN :
+{
+        < LITERAL: (<DIGIT>)+ >
+    |   < IDENT: <LETTER> (<LETTER>|<DIGIT>)* > // --> <19>
+            {   int idx;
+                int len = image.length();
+
+                if (!Character.isJavaIdentifierStart(
+                        image.charAt(0))) {
+                    ++nLexicalErrors;
+                    System.out.println(
+                            "### Illegal Character : \""
+                            + matchedToken.image.charAt(0)
+                            + "\"("
+                            + Integer.toHexString(
+                            matchedToken.image.charAt(0))
+                            + ") at line "
+                            + matchedToken.beginLine
+                            + ", column "
+                            + matchedToken.beginColumn + "." );
+                }
+                for (idx = 1; idx < len; ++idx) {
+                    if (!Character.isJavaIdentifierPart(
+                            image.charAt(idx))) {
+                        ++nLexicalErrors;
+                        System.out.println(
+                            "### Illegal Character : \""
+                            + matchedToken.image.charAt(idx)
+                            + "\"("
+                            + Integer.toHexString(
+                            matchedToken.image.charAt(idx))
+                            + ") at line "
+                            + matchedToken.beginLine
+                            + ", column "
+                            + (matchedToken.beginColumn + idx)
+                            + "." );
+                    }
+                }
+            }
+}
+
+MORE:                                           // --> <14>
+{
+        < "\"" > :STR
+}
+<STR>TOKEN:                                     // --> <17>
+{
+        < STRLIT: "\""|"\r\n" >
+            {   if (image.charAt(image.length()-1) == '\"')
+                    matchedToken.image =
+                            image.substring(1, image.length()-1);
+                else {
+                    ++nLexicalErrors;
+                    matchedToken.image =
+                            image.substring(1, image.length()-2);
+                    System.out.println(
+                        "### String terminated at end-of-line"
+                        + " : at line " + matchedToken.beginLine
+                        + ", column " + matchedToken.beginColumn
+                        + "." );
+                }
+            }
+            :DEFAULT
+}
+<STR>MORE:                                      // --> <15>
+{
+        < "\\\"" >
+            {   image.deleteCharAt(image.length() - 2); }
+}
+<STR>MORE:                                      // --> <16>
+{
+        < "\\n" >
+            {   image.delete(image.length() - 2, image.length());
+                image.append("\r\n");
+            }
+}
+<STR>MORE:                                      // --> <20>
+{
+        < ~[] >
+}
+
+MORE:
+{
+        < "/*" > :COMM
+}
+<COMM>SPECIAL_TOKEN:
+{
+        < COMMENT: "*/" > :DEFAULT
+}
+<COMM>MORE:
+{
+        < ~[] >
+}
+
+SKIP :                                          // --> <21>
+{
+        < ~[] >
+            {   ++nLexicalErrors;
+                System.out.println("### Illegal Character : '"
+                        + image + "' : at line "
+                        + input_stream.getBeginLine()
+                        + ", column "
+                        + input_stream.getBeginColumn() + "." );
+            }
+}
+
+void ComplUnit() :
+{   Token t;    }
+{
+        (                                       // --> <10>
+            try {                               // --> <7>
+                    VarDecl()
+                |   Stat()
+                |   <EOF>
+                        { return; }
+                |   ErrorOccur()                // --> <9>
+            } catch (ParseException e) {
+                ++nParseErrors;
+                System.out.println("### " + e.getMessage());
+                do {
+                    t = getNextToken();
+                } while (t.kind != SM && t.kind != RC
+                        && t.kind != EOF);
+            }
+        )*
+}
+
+JAVACODE                                        // --> <8>
+    void ErrorOccur() {
+        ParseException e = generateParseException();
+        throw e;
+    }
+
+void VarDecl() :
+{   Token t; }
+{
+        <VAR> t=<IDENT> <SM>
+            {   if (codeGen.newSymbol(t.image) == -1)
+                    throw new ParseException(
+                            "Variable multi-defined : \""
+                            + t.image + "\" at line "
+                            + t.beginLine + ", column "
+                            + t.beginColumn + "." );
+                                                // --> <11>
+            }
+}
+
+void Stat() :
+{}
+{
+        AssignStat()
+    |   IfStat()
+    |   WhileStat()
+    |   GetStat()
+    |   PutStat()
+    |   Block()
+    |   <SM>
+}
+
+void AssignStat() :
+{   ExprNode e;
+    int i;
+}
+{
+        i=Ident() <ASGNOP> e=AddExpr() <SM>
+            {   codeGen.genExpr(e);
+                codeGen.genVMcode(OP_POP, i);
+            }
+}
+
+void IfStat() :                                 // --> <5>
+{   int l1 = -1, l2 = -1;
+    ExprNode c;
+}
+{
+        <IF> <LP> c=Cond() <RP>
+            {   codeGen.genExpr(c);
+                codeGen.genVMcode(
+                        OP_JPF, l1 = codeGen.newLabel());
+            }
+        Stat()
+        (
+//          LOOKAHEAD(1) <ELSE>
+            <ELSE>
+                {   codeGen.genVMcode(
+                            OP_JMP, l2 = codeGen.newLabel());
+                    codeGen.genVMcode(OP_LBL, l1);
+                }
+            Stat()
+                {   codeGen.genVMcode(OP_LBL, l2); }
+        | 
+                {   codeGen.genVMcode(OP_LBL, l1); }
+        )
+}
+
+void WhileStat() :                              // --> <3>
+{   int l1 = -1, l2 = -1;
+    ExprNode c;
+}
+{
+        <WHILE> <LP> c=Cond() <RP>
+            {   codeGen.genVMcode(
+                        OP_LBL, l1 = codeGen.newLabel());
+                codeGen.genExpr(c);
+                codeGen.genVMcode(
+                        OP_JPF, l2 = codeGen.newLabel());
+            }
+        Stat()
+            {   codeGen.genVMcode(OP_JMP, l1);
+                codeGen.genVMcode(OP_LBL, l2);
+            }
+}
+
+void GetStat() :
+{   int i; }
+{
+        <GET> <LP> i=Ident() <RP> <SM>
+            {   codeGen.genVMcode(OP_GET, i); }
+}
+
+void PutStat() :
+{   int i = 0;
+    ExprNode e;
+}
+{
+        <PUT> <LP> PutParam() ( <CM> PutParam() )* <RP> <SM>
+            {   codeGen.genVMcode(OP_PUTL, 0);}
+}
+
+void PutParam() :
+{   int i = 0;
+    ExprNode e = null;
+}
+{
+//              try {                           // --> <23>
+
+        e=AddExpr()
+            {   codeGen.genExpr(e);
+                codeGen.genVMcode(OP_PUTN, 0);
+            }
+    |   i=StrLit()
+            {   codeGen.genVMcode(OP_PUTS, i); }
+
+//              } catch (ParseException x) {    // --> <24>
+//                  Token tc, tn;
+//                  ++nParseErrors;
+//                  System.out.println("### " + x.getMessage());
+//                  tn = getToken(1);
+//                  while (tn.kind != CM && tn.kind != RP
+//                          && tn.kind != SM && tn.kind != RC
+//                          && tn.kind != EOF) {
+//                      tc = getNextToken();
+//                      tn = getToken(1);
+//                  }
+//              } 
+}
+
+void Block() :                                  // --> <6>
+{}
+{
+        <LC> ( Stat() )* <RC>
+}
+
+ExprNode Cond() :
+{   ExprNode l = null, r = null, tr = null;
+}
+{
+        l=AddExpr()
+        (   <LSOP> r=AddExpr()
+                {   tr = new ExprNode(LS, l, r); }
+        |   <GTOP> r=AddExpr()
+                {   tr = new ExprNode(GT, l, r); }
+        |   <LEOP> r=AddExpr()
+                {   tr = new ExprNode(LE, l, r); }
+        |   <GEOP> r=AddExpr()
+                {   tr = new ExprNode(GE, l, r); }
+        |   <EQOP> r=AddExpr()
+                {   tr = new ExprNode(EQ, l, r); }
+        |   <NTOP> r=AddExpr() 
+                {   tr = new ExprNode(NT, l, r); }
+        )
+            {   return tr; }
+}
+
+ExprNode AddExpr() :
+{   ExprNode l = null, r = null;
+}
+{
+        l=MulExpr()
+        (   <ADDOP> r=MulExpr()
+                {   l = new ExprNode(ADD, l, r); }
+                                                // --> <1>
+        |   <SUBOP> r=MulExpr()
+                {   l = new ExprNode(SUB, l, r); }
+        )*
+            {   return l; }
+}
+
+ExprNode MulExpr() :
+{   ExprNode l = null, r = null;
+}
+{
+        l=UnExpr()
+        (   <MULOP> r=UnExpr()
+                {   l = new ExprNode(MUL, l, r); }
+        |   <DIVOP> r=UnExpr()
+                {   l = new ExprNode(DIV, l, r); }
+        )*
+            {   return l; }
+}
+
+ExprNode UnExpr() :
+{   ExprNode l = null; }
+{
+        <SUBOP> l=UnExpr()
+            {   return new ExprNode(MIN, l, null); }
+    |   l=PrimExpr()
+            {   return l; }
+}
+
+ExprNode PrimExpr() :
+{   ExprNode l = null;
+    int n = 0, i = 0;
+}
+{
+        n=Literal()
+            {   return new ExprNode(NUM, n); }  // --> <2>
+    |   i=Ident() 
+            {   return new ExprNode(ID, i); }
+    |   <LP> l=AddExpr() <RP>
+            {   return l; }
+}
+
+int Ident() :
+{   Token t;
+    int n;
+}
+{
+        t=<IDENT>
+            {   if ((n = codeGen.getSymbol(t.image)) == -1) {
+                    throw new ParseException(
+                            "Variable not defined : \""
+                        + t.image + "\" at line " + t.beginLine
+                        + ", column " + t.beginColumn + "." );
+                                                // --> <12>
+                } else
+                    return n;
+            }
+}
+
+int Literal() :
+{   Token t; }
+{
+        t=<LITERAL>
+            {   try {
+                    return Integer.parseInt(t.image);
+                } catch (Exception e) {
+                    throw new ParseException(
+                            "Invalid literal : \""
+                            + t.image + "\" at line "
+                            + t.beginLine + ", column "
+                            + t.beginColumn + ".");
+                }
+            }
+}
+
+int StrLit() :
+{   Token t; }
+{
+        t=<STRLIT>
+            {   return codeGen.pool(t.image); }
+}
