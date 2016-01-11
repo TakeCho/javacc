@@ -32,6 +32,19 @@ public class CodeGenerater implements VMcodeConst {
         symTable.put(str, new Integer(nSymbol));
         return nSymbol++;
     }
+//----------------------------------------------------------------------------------
+   int newArraySymbol(String str,String nums) {
+        int num = Integer.parseInt(nums);
+
+        symTable.put(str, new Integer(nSymbol));
+        for(int i=0;i<num;i++)
+        {
+        nSymbol++;
+       // System.out.println("呼んでいるね/青山テルマ"+i);
+        }
+        return nSymbol;
+    }
+//----------------------------------------------------------------------------------
 
     int getSymbol(String str) {
         Object o = symTable.get(str);
@@ -65,6 +78,9 @@ public class CodeGenerater implements VMcodeConst {
             break;
         case NUM:
             genVMcode(OP_PSHN, node.value);
+            break;
+        case TREE:
+            genVMcode(OP_PSHXI, node.value);
             break;
         default:
             genVMcode(OP_CAL, node.type);

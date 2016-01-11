@@ -20,5 +20,12 @@ public class ExprNode {
     right = r;
     }
 
+    public ExprNode(int ty, int v, ExprNode l){
+        type = ty;
+        value = v;
+        left = l;
+        right = null;
+    }
+
 }
 

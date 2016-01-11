@@ -59,6 +59,17 @@ class VirtualMachine implements VMcodeConst {
             case OP_POP:
                 varArea[subCode[pc]] = IntStack[sp--];
                 break;
+//------------------------------------------------------------------------------
+            case OP_POPX:
+                varArea[subCode[pc]+IntStack[sp-1]] = IntStack[sp];
+                sp-=2;
+                break;
+
+            case OP_PSHXI:
+                //ここに処理を記述
+                IntStack[sp] = varArea[subCode[pc]+IntStack[sp]];
+                break;
+//------------------------------------------------------------------------------
             case OP_PSHI:
                 IntStack[++sp] = varArea[subCode[pc]];
                 break;

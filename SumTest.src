@@ -1,0 +1,15 @@
+/*
+ *    Program9.src
+ */
+var cnt;
+var answer;
+var max;
+cnt = 1;
+answer = 0;
+put("please enter value: ");
+get(max);
+while (cnt <= max) {
+        answer = answer + cnt;
+    cnt = cnt  + 1;
+}
+put("answer = ", answer, "\n");

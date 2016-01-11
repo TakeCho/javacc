@@ -59,6 +59,8 @@ TOKEN :
     |   < RP: ")" >
     |   < SM: ";" >
     |   < CM: "," >
+    |   < LA: "[" >
+    |   < RA: "]" >
 }
 
 TOKEN [IGNORE_CASE] :
@@ -69,6 +71,7 @@ TOKEN [IGNORE_CASE] :
     |   < WHILE: "while" >
     |   < PUT: "put" >
     |   < GET: "get" >
+    |   < FOR: "for" >
 }
 
 TOKEN :
@@ -213,16 +216,27 @@ JAVACODE                                        // --> <8>
     }
 
 void VarDecl() :
-{   Token t; }
+{   Token t,l=null; }
 {
-        <VAR> t=<IDENT> <SM>
-            {   if (codeGen.newSymbol(t.image) == -1)
+        <VAR> t=<IDENT> (<LA> l=<LITERAL> <RA>)? <SM>
+            { 
+                if(l==null){
+                    if (codeGen.newSymbol(t.image) == -1){
                     throw new ParseException(
                             "Variable multi-defined : \""
                             + t.image + "\" at line "
                             + t.beginLine + ", column "
                             + t.beginColumn + "." );
                                                 // --> <11>
+                }
+                }else if (codeGen.newArraySymbol(t.image,l.image) == -1){
+                    throw new ParseException(
+                            "Variable multi-defined : \""
+                            + t.image + "\" at line "
+                            + t.beginLine + ", column "
+                            + t.beginColumn + "." );
+                                                // --> <11>
+                }
             }
 }
 
@@ -235,19 +249,52 @@ void Stat() :
     |   GetStat()
     |   PutStat()
     |   Block()
-    |   <SM>
+    |   ForStat()
 }
 
-void AssignStat() :
-{   ExprNode e;
+void ForStat() :
+{   int l1, l2;
+    ExprNode c, e;
     int i;
 }
 {
-        i=Ident() <ASGNOP> e=AddExpr() <SM>
+        <FOR> <LP> (AssignStat() | <SM>) c=Cond() 
+            {   codeGen.genVMcode(
+                        OP_LBL, l1 = codeGen.newLabel());
+                codeGen.genExpr(c);
+                codeGen.genVMcode(
+                        OP_JPF, l2 = codeGen.newLabel());
+            }
+    <SM> i=Ident() <ASGNOP> e=AddExpr() <RP>
+        Stat()
             {   codeGen.genExpr(e);
-                codeGen.genVMcode(OP_POP, i);
+        codeGen.genVMcode(OP_POP, i);
+        codeGen.genVMcode(OP_JMP, l1);
+                codeGen.genVMcode(OP_LBL, l2);
             }
 }
+
+
+void AssignStat() :
+{   ExprNode e;
+    Token l=null;
+    int i,j=-1;
+}
+{
+       i=Ident() (<LA> j=Ident() {codeGen.genVMcode(OP_PSHI,j);} <RA>)? <ASGNOP> e=AddExpr() <SM>
+            {   
+
+                codeGen.genExpr(e);
+                
+                if(j==-1){
+                    codeGen.genVMcode(OP_POP, i);
+                }else{
+                    codeGen.genVMcode(OP_POPX, i);
+                }
+
+            }   
+}
+
 
 void IfStat() :                                 // --> <5>
 {   int l1 = -1, l2 = -1;
@@ -406,8 +453,13 @@ ExprNode PrimExpr() :
 {
         n=Literal()
             {   return new ExprNode(NUM, n); }  // --> <2>
-    |   i=Ident() 
-            {   return new ExprNode(ID, i); }
+    |   i=Ident() (<LA> l=AddExpr() <RA>)?
+            {   if(l==null){
+                return new ExprNode(ID, i); 
+            }else{
+                return new ExprNode(TREE, i, l);                
+            }
+        }
     |   <LP> l=AddExpr() <RP>
             {   return l; }
 }

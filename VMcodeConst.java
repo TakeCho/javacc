@@ -18,6 +18,8 @@ public interface VMcodeConst {
     int OP_NCOD = 12;
     int OP_NDCL = 13;
     int OP_NSTR = 14;
+    int OP_POPX = 15;
+    int OP_PSHXI = 16;
 
     int ADD =  1;
     int SUB =  2;
@@ -34,6 +36,7 @@ public interface VMcodeConst {
     int ID  = 100;
     int NUM = 101;
     int STR = 102;
+    int TREE = 103;
 
     int CODESIZE = 1000;
     int POOLSIZE = 100;
@@ -54,7 +57,9 @@ public interface VMcodeConst {
         "OP_PUTL",
         "OP_NCOD",
         "OP_NDCL",
-        "OP_NSTR"
+        "OP_NSTR",
+        "OP_POPX",
+        "OP_PSHXI"
     };
 
     String subName[] = {

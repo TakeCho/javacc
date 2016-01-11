@@ -24,11 +24,11 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
             VarDecl();
             break;
           case LC:
-          case SM:
           case IF:
           case WHILE:
           case PUT:
           case GET:
+          case FOR:
           case IDENT:
             Stat();
             break;
@@ -68,18 +68,37 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
   final public void VarDecl() throws ParseException {
     trace_call("VarDecl");
     try {
-    Token t;
+    Token t,l=null;
       jj_consume_token(VAR);
       t = jj_consume_token(IDENT);
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case LA:
+        jj_consume_token(LA);
+        l = jj_consume_token(LITERAL);
+        jj_consume_token(RA);
+        break;
+      default:
+        jj_la1[1] = jj_gen;
+        ;
+      }
       jj_consume_token(SM);
-                if (codeGen.newSymbol(t.image) == -1)
+                if(l==null){
+                    if (codeGen.newSymbol(t.image) == -1){
                     {if (true) throw new ParseException(
                             "Variable multi-defined : \u005c""
                             + t.image + "\u005c" at line "
                             + t.beginLine + ", column "
                             + t.beginColumn + "." );}
                                                 // --> <11>
-
+                }
+                }else if (codeGen.newArraySymbol(t.image,l.image) == -1){
+                    {if (true) throw new ParseException(
+                            "Variable multi-defined : \u005c""
+                            + t.image + "\u005c" at line "
+                            + t.beginLine + ", column "
+                            + t.beginColumn + "." );}
+                                                // --> <11>
+                }
     } finally {
       trace_return("VarDecl");
     }
@@ -107,11 +126,11 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
       case LC:
         Block();
         break;
-      case SM:
-        jj_consume_token(SM);
+      case FOR:
+        ForStat();
         break;
       default:
-        jj_la1[1] = jj_gen;
+        jj_la1[2] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -120,17 +139,75 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
     }
   }
 
+  final public void ForStat() throws ParseException {
+    trace_call("ForStat");
+    try {
+    int l1, l2;
+    ExprNode c, e;
+    int i;
+      jj_consume_token(FOR);
+      jj_consume_token(LP);
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case IDENT:
+        AssignStat();
+        break;
+      case SM:
+        jj_consume_token(SM);
+        break;
+      default:
+        jj_la1[3] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
+      c = Cond();
+                codeGen.genVMcode(
+                        OP_LBL, l1 = codeGen.newLabel());
+                codeGen.genExpr(c);
+                codeGen.genVMcode(
+                        OP_JPF, l2 = codeGen.newLabel());
+      jj_consume_token(SM);
+      i = Ident();
+      jj_consume_token(ASGNOP);
+      e = AddExpr();
+      jj_consume_token(RP);
+      Stat();
+                codeGen.genExpr(e);
+        codeGen.genVMcode(OP_POP, i);
+        codeGen.genVMcode(OP_JMP, l1);
+                codeGen.genVMcode(OP_LBL, l2);
+    } finally {
+      trace_return("ForStat");
+    }
+  }
+
   final public void AssignStat() throws ParseException {
     trace_call("AssignStat");
     try {
     ExprNode e;
-    int i;
+    Token l=null;
+    int i,j=-1;
       i = Ident();
+      switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+      case LA:
+        jj_consume_token(LA);
+        j = Ident();
+                                  codeGen.genVMcode(OP_PSHI,j);
+        jj_consume_token(RA);
+        break;
+      default:
+        jj_la1[4] = jj_gen;
+        ;
+      }
       jj_consume_token(ASGNOP);
       e = AddExpr();
       jj_consume_token(SM);
                 codeGen.genExpr(e);
-                codeGen.genVMcode(OP_POP, i);
+
+                if(j==-1){
+                    codeGen.genVMcode(OP_POP, i);
+                }else{
+                    codeGen.genVMcode(OP_POPX, i);
+                }
     } finally {
       trace_return("AssignStat");
     }
@@ -159,7 +236,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
                     codeGen.genVMcode(OP_LBL, l2);
         break;
       default:
-        jj_la1[2] = jj_gen;
+        jj_la1[5] = jj_gen;
                     codeGen.genVMcode(OP_LBL, l1);
       }
     } finally {
@@ -219,7 +296,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
           ;
           break;
         default:
-          jj_la1[3] = jj_gen;
+          jj_la1[6] = jj_gen;
           break label_2;
         }
         jj_consume_token(CM);
@@ -254,7 +331,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
                 codeGen.genVMcode(OP_PUTS, i);
         break;
       default:
-        jj_la1[4] = jj_gen;
+        jj_la1[7] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -271,16 +348,16 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
       while (true) {
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
         case LC:
-        case SM:
         case IF:
         case WHILE:
         case PUT:
         case GET:
+        case FOR:
         case IDENT:
           ;
           break;
         default:
-          jj_la1[5] = jj_gen;
+          jj_la1[8] = jj_gen;
           break label_3;
         }
         Stat();
@@ -328,7 +405,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
                     tr = new ExprNode(NT, l, r);
         break;
       default:
-        jj_la1[6] = jj_gen;
+        jj_la1[9] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -352,7 +429,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
           ;
           break;
         default:
-          jj_la1[7] = jj_gen;
+          jj_la1[10] = jj_gen;
           break label_4;
         }
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -367,7 +444,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
                     l = new ExprNode(SUB, l, r);
           break;
         default:
-          jj_la1[8] = jj_gen;
+          jj_la1[11] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -392,7 +469,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
           ;
           break;
         default:
-          jj_la1[9] = jj_gen;
+          jj_la1[12] = jj_gen;
           break label_5;
         }
         switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
@@ -407,7 +484,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
                     l = new ExprNode(DIV, l, r);
           break;
         default:
-          jj_la1[10] = jj_gen;
+          jj_la1[13] = jj_gen;
           jj_consume_token(-1);
           throw new ParseException();
         }
@@ -436,7 +513,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
                 {if (true) return l;}
         break;
       default:
-        jj_la1[11] = jj_gen;
+        jj_la1[14] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -458,7 +535,21 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
         break;
       case IDENT:
         i = Ident();
+        switch ((jj_ntk==-1)?jj_ntk():jj_ntk) {
+        case LA:
+          jj_consume_token(LA);
+          l = AddExpr();
+          jj_consume_token(RA);
+          break;
+        default:
+          jj_la1[15] = jj_gen;
+          ;
+        }
+                if(l==null){
                 {if (true) return new ExprNode(ID, i);}
+            }else{
+                {if (true) return new ExprNode(TREE, i, l);}
+            }
         break;
       case LP:
         jj_consume_token(LP);
@@ -467,7 +558,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
                 {if (true) return l;}
         break;
       default:
-        jj_la1[12] = jj_gen;
+        jj_la1[16] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -538,7 +629,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
   public Token jj_nt;
   private int jj_ntk;
   private int jj_gen;
-  final private int[] jj_la1 = new int[13];
+  final private int[] jj_la1 = new int[17];
   static private int[] jj_la1_0;
   static private int[] jj_la1_1;
   static {
@@ -546,10 +637,10 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
       jj_la1_init_1();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x1da20001,0x1d220000,0x2000000,0x400000,0x80080080,0x1d220000,0x1f800,0xc0,0xc0,0x300,0x300,0x80080080,0x80080000,};
+      jj_la1_0 = new int[] {0xf6020001,0x800000,0xf4020000,0x200000,0x800000,0x8000000,0x400000,0x80080,0xf4020000,0x1f800,0xc0,0xc0,0x300,0x300,0x80080,0x800000,0x80000,};
    }
    private static void jj_la1_init_1() {
-      jj_la1_1 = new int[] {0x1,0x1,0x0,0x0,0x5,0x1,0x0,0x0,0x0,0x0,0x0,0x1,0x1,};
+      jj_la1_1 = new int[] {0x8,0x0,0x8,0x8,0x0,0x0,0x0,0x2c,0x8,0x0,0x0,0x0,0x0,0x0,0xc,0x0,0xc,};
    }
 
   /** Constructor with InputStream. */
@@ -563,7 +654,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 13; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 17; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -577,7 +668,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 13; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 17; i++) jj_la1[i] = -1;
   }
 
   /** Constructor. */
@@ -587,7 +678,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 13; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 17; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -597,7 +688,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 13; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 17; i++) jj_la1[i] = -1;
   }
 
   /** Constructor with generated Token Manager. */
@@ -606,7 +697,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 13; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 17; i++) jj_la1[i] = -1;
   }
 
   /** Reinitialise. */
@@ -615,7 +706,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 13; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 17; i++) jj_la1[i] = -1;
   }
 
   private Token jj_consume_token(int kind) throws ParseException {
@@ -668,12 +759,12 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
   /** Generate ParseException. */
   public ParseException generateParseException() {
     jj_expentries.clear();
-    boolean[] la1tokens = new boolean[42];
+    boolean[] la1tokens = new boolean[45];
     if (jj_kind >= 0) {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 13; i++) {
+    for (int i = 0; i < 17; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {
@@ -685,7 +776,7 @@ public class ComplParser implements VMcodeConst, ComplParserConstants {
         }
       }
     }
-    for (int i = 0; i < 42; i++) {
+    for (int i = 0; i < 45; i++) {
       if (la1tokens[i]) {
         jj_expentry = new int[1];
         jj_expentry[0] = i;

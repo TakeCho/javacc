@@ -43,29 +43,35 @@ public interface ComplParserConstants {
   /** RegularExpression Id. */
   int CM = 22;
   /** RegularExpression Id. */
-  int VAR = 23;
+  int LA = 23;
   /** RegularExpression Id. */
-  int IF = 24;
+  int RA = 24;
   /** RegularExpression Id. */
-  int ELSE = 25;
+  int VAR = 25;
   /** RegularExpression Id. */
-  int WHILE = 26;
+  int IF = 26;
   /** RegularExpression Id. */
-  int PUT = 27;
+  int ELSE = 27;
   /** RegularExpression Id. */
-  int GET = 28;
+  int WHILE = 28;
   /** RegularExpression Id. */
-  int DIGIT = 29;
+  int PUT = 29;
   /** RegularExpression Id. */
-  int LETTER = 30;
+  int GET = 30;
   /** RegularExpression Id. */
-  int LITERAL = 31;
+  int FOR = 31;
   /** RegularExpression Id. */
-  int IDENT = 32;
+  int DIGIT = 32;
   /** RegularExpression Id. */
-  int STRLIT = 34;
+  int LETTER = 33;
   /** RegularExpression Id. */
-  int COMMENT = 39;
+  int LITERAL = 34;
+  /** RegularExpression Id. */
+  int IDENT = 35;
+  /** RegularExpression Id. */
+  int STRLIT = 37;
+  /** RegularExpression Id. */
+  int COMMENT = 42;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -99,12 +105,15 @@ public interface ComplParserConstants {
     "\")\"",
     "\";\"",
     "\",\"",
+    "\"[\"",
+    "\"]\"",
     "\"var\"",
     "\"if\"",
     "\"else\"",
     "\"while\"",
     "\"put\"",
     "\"get\"",
+    "\"for\"",
     "<DIGIT>",
     "<LETTER>",
     "<LITERAL>",
@@ -113,11 +122,11 @@ public interface ComplParserConstants {
     "<STRLIT>",
     "\"\\\\\\\"\"",
     "\"\\\\n\"",
-    "<token of kind 37>",
+    "<token of kind 40>",
     "\"/*\"",
     "\"*/\"",
-    "<token of kind 40>",
-    "<token of kind 41>",
+    "<token of kind 43>",
+    "<token of kind 44>",
   };
 
 }

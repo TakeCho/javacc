@@ -1,0 +1,18 @@
+/*
+ *    Array.src
+ */
+
+var i;
+var a[10];
+for(i=0; i<10; i=i+1) {
+	a[i] = i+1;
+}
+
+var sum;
+sum = 0;
+for(i=0; i<10; i=i+1) {
+	put("a[", i, "]= ", a[i], "\n");  /* debug */
+	sum = sum+a[i];
+}
+
+put("sum = ", sum, "\n");
